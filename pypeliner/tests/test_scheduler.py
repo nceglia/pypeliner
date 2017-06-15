@@ -899,6 +899,7 @@ class scheduler_test(unittest.TestCase):
         # Split input file into 4 lines per output file (axis `byline_a`)
         workflow.transform(
             name='split_byline_a',
+            axes_origin=[('byline_a',)],
             func=split_file_byline,
             args=(
                 mgd.InputFile(self.input_filename),
@@ -909,6 +910,7 @@ class scheduler_test(unittest.TestCase):
         workflow.transform(
             name='split_byline_b',
             axes=('byline_a',),
+            axes_origin=[('byline_a', 'byline_b')],
             func=split_file_byline,
             args=(
                 mgd.TempInputFile('input_data', 'byline_a'),
