@@ -43,9 +43,10 @@ class CallSet(object):
 
 class JobDefinition(object):
     """ Represents an abstract job including function and arguments """
-    def __init__(self, name, axes, ctx, func, argset):
+    def __init__(self, name, axes, axes_origin, ctx, func, argset):
         self.name = name
         self.axes = axes
+        self.axes_origin = axes_origin
         self.ctx = ctx
         self.func = func
         self.argset = argset
@@ -74,6 +75,7 @@ class JobInstance(object):
     """ Represents a job including function and arguments """
     direct_write = False
     def __init__(self, job_def, workflow, db, node):
+        print 'job'
         self.job_def = job_def
         self.workflow = workflow
         self.db = db
@@ -86,11 +88,15 @@ class JobInstance(object):
         except JobArgMismatchException as e:
             e.job_name = self.displayname
             raise
+        print 'job2'
         self.logs_dir = os.path.join(db.logs_dir, self.node.subdir, self.job_def.name)
         pypeliner.helpers.makedirs(self.logs_dir)
         self.retry_idx = 0
         self.ctx = job_def.ctx.copy()
         self.is_required_downstream = False
+        print 'job3'
+        print self.init_inputs_outputs
+        print self
         self.init_inputs_outputs()
 
     def _create_arg(self, mg):
@@ -115,6 +121,7 @@ class JobInstance(object):
         self.arglist.append(arg)
         return arg, True
     def init_inputs_outputs(self):
+        print 'inputs~~'
         self.inputs = list()
         self.outputs = list()
         merge_inputs = list()

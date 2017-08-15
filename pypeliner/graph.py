@@ -52,6 +52,7 @@ class DependencyGraph:
         and outputs, maintaining current state.
 
         """
+        print 'regen~~'
         self.jobs = jobs
         all_inputs = set((input.id for job in self.jobs.itervalues() for input in job.inputs))
         all_outputs = set((output.id for job in self.jobs.itervalues() for output in job.outputs))
@@ -61,9 +62,12 @@ class DependencyGraph:
         self.dependant_jobs = collections.defaultdict(set)
         self.creating_job = dict()
         for job in jobs.itervalues():
+            print 'job', job.displayname
             for resource in job.inputs:
+                print '  input', resource.id
                 self.dependant_jobs[resource.id].add(job.id)
             for resource in job.outputs:
+                print '  output', resource.id
                 if resource.id in self.creating_job:
                     raise AmbiguousOutputException(resource.id, [job.id, self.creating_job[resource.id]])
                 self.creating_job[resource.id] = job.id
