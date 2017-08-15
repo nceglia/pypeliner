@@ -89,7 +89,7 @@ class Workflow(object):
         """
         self.transform(name=name, axes=axes, ctx=ctx, func=pypeliner.commandline.execute, args=args)
 
-    def transform(self, name='', axes=(), ctx=None, func=None, ret=None, args=None, kwargs=None):
+    def transform(self, name='', axes=(), axes_origin=(), ctx=None, func=None, ret=None, args=None, kwargs=None):
         """ Add a transform to the pipeline.  A transform defines a job that uses the
         provided python function ``func`` to take input dependencies and create/update 
         output dependents.
@@ -100,6 +100,7 @@ class Workflow(object):
                      job with an empty list for the axes has a single instance.  A job with
                      one axis in the axes list will have as many instances as were defined
                      for that axis by the split that is responsible for that axis.
+        :param axes_origin: list of axes that are created by this job.
         :param ctx: context of the job as a dictionary of key, value pairs.  The context
                     is given to the exec queue and provides a way of communicating jobs
                     specific requirements such as memory and cpu usage.  Setting
@@ -126,7 +127,7 @@ class Workflow(object):
             job_ctx.update(ctx)
         if name in self.job_definitions:
             raise ValueError('Job already defined')
-        self.job_definitions[name] = pypeliner.jobs.JobDefinition(name, axes, job_ctx, func, pypeliner.jobs.CallSet(ret=ret, args=args, kwargs=kwargs))
+        self.job_definitions[name] = pypeliner.jobs.JobDefinition(name, axes, axes_origin, job_ctx, func, pypeliner.jobs.CallSet(ret=ret, args=args, kwargs=kwargs))
 
     def subworkflow(self, name='', axes=(), func=None, args=None, kwargs=None):
         """ Add a sub workflow to the pipeline.  A sub workflow is a set of jobs that
