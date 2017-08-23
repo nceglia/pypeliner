@@ -12,12 +12,14 @@ def update_createtime(filename):
 
 
 def get_exists(filename):
+    invalidate_all()
     if filename not in _createtimes:
         update_createtime(filename)
     return _createtimes[filename] is not None
 
 
 def get_createtime(filename):
+    invalidate_all()
     if filename not in _createtimes:
         update_createtime(filename)
     return _createtimes[filename]

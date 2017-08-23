@@ -17,7 +17,6 @@ class NodeManager(object):
         self.db = db
         self.nodes_dir = nodes_dir
         self.temps_dir = temps_dir
-        self.cached_chunks = dict()
     def retrieve_nodes(self, axes, base_node=None):
         if base_node is None:
             base_node = pypeliner.identifiers.Node()
