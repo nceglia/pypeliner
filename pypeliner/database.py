@@ -38,14 +38,12 @@ class NodeManager(object):
                 for chunks_rest in self.retrieve_chunks(axes[1:], node + pypeliner.identifiers.AxisInstance(axes[0], chunk)):
                     yield (chunk,) + chunks_rest
     def retrieve_axis_chunks(self, axis, node):
-        if (axis, node) not in self.cached_chunks:
-            filename = self.db.get_temp_filename(axis, node)
-            resource = pypeliner.resources.TempObjManager(axis, node, filename)
-            chunks = resource.get_obj()
-            if chunks is None:
-                chunks = (None,)
-            self.cached_chunks[(axis, node)] = chunks
-        return self.cached_chunks[(axis, node)]
+        filename = self.db.get_temp_filename(axis, node)
+        resource = pypeliner.resources.TempObjManager(axis, node, filename)
+        chunks = resource.get_obj()
+        if chunks is None:
+            chunks = (None,)
+        return chunks
     def store_chunks(self, axes, node, chunks, subset=None):
         if subset is None:
             subset = set([])
@@ -73,7 +71,6 @@ class NodeManager(object):
             new_node = node + pypeliner.identifiers.AxisInstance(axis, chunk)
             pypeliner.helpers.makedirs(os.path.join(self.temps_dir, new_node.subdir))
         chunks = sorted(chunks)
-        self.cached_chunks[(axis, node)] = chunks
         filename = self.db.get_temp_filename(axis, node)
         resource = pypeliner.resources.TempObjManager(axis, node, filename)
         resource.finalize(chunks)
@@ -103,6 +100,8 @@ class NodeManager(object):
     def get_node_inputs(self, node):
         if len(node) >= 1:
             yield pypeliner.resources.Dependency(node[-1][0], node[:-1])
+    def __getstate__(self):
+        raise NotImplementedError()
 
 
 def _check_template(template, node):
