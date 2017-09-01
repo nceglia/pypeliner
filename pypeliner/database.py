@@ -100,8 +100,6 @@ class NodeManager(object):
     def get_node_inputs(self, node):
         if len(node) >= 1:
             yield pypeliner.resources.Dependency(node[-1][0], node[:-1])
-    def __getstate__(self):
-        raise NotImplementedError()
 
 
 def _check_template(template, node):

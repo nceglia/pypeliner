@@ -196,6 +196,7 @@ class JobInstance(object):
         pypeliner.helpers.makedirs(exc_dir)
         return exc_dir
     def finalize(self, callable):
+        callable.finalize(self.db)
         self.init_inputs_outputs()
         if self.check_require_regenerate():
             self.workflow.regenerate()
@@ -279,7 +280,9 @@ class JobCallable(object):
                 self.hostname = socket.gethostname()
                 with self.job_timer:
                     self.callargs = list()
-                    self.callset = copy.deepcopy(self.argset, {'_db':self.db, '_direct_write':self.direct_write, '_args':self.callargs})
+                    self.callset = pypeliner.deep.deeptransform(
+                        self.argset,
+                        lambda a: transform_arg(a, self.db, self.callargs))
                     self.ret_value = self.func(*self.callset.args, **self.callset.kwargs)
                     if self.callset.ret is not None:
                         self.callset.ret.value = self.ret_value
@@ -292,6 +295,11 @@ class JobCallable(object):
                 sys.stderr.write(traceback.format_exc())
             finally:
                 sys.stdout, sys.stderr = old_stdout, old_stderr
+    def finalize(self, db):
+        for arg in self.callargs:
+            arg.updatedb(db)
+        for arg in self.callargs:
+            arg.finalize(db)
 
 def _setobj_helper(value):
     return value
