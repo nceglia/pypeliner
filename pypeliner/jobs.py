@@ -201,7 +201,7 @@ class JobInstance(object):
         if self.check_require_regenerate():
             self.workflow.regenerate()
     def complete(self):
-        self.workflow.notify_completed(self)
+        self.workflow.notify_completed(self.id)
     def retry(self):
         if self.retry_idx >= self.ctx.get('num_retry', 0):
             return False

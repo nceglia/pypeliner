@@ -253,18 +253,20 @@ class TempMergeObjArg(Arg,SplitMergeArg):
         self.axes = axes
         self.func = func
         self.resources = []
-        self.inputs = []
         for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
             filename = db.get_temp_filename(self.name, node)
             resource = pypeliner.resources.TempObjManager(self.name, node, filename)
             self.resources.append(resource)
-            self.inputs.append(resource)
+        self.merge_inputs = []
         for dependency in db.nodemgr.get_merge_inputs(self.axes, self.node):
-            self.inputs.append(dependency)
+            self.merge_inputs.append(dependency)
     def get_resources(self, db):
         return self.resources
     def get_inputs(self, db):
-        return self.inputs
+        for resource in self.resources:
+            yield resource.input
+        for dependency in self.merge_inputs:
+            yield dependency
     def resolve(self, db):
         resolved = dict()
         for resource in self.resources:
@@ -290,7 +292,7 @@ class TempOutputObjArg(Arg):
         yield self.resource.output
     def resolve(self, db):
         return self
-    def finalize(self, db):
+    def updatedb(self, db):
         self.resource.finalize(self.value)
 
 
@@ -308,34 +310,37 @@ class TempSplitObjArg(Arg,SplitMergeArg):
         self.axes_origin = self.get_axes_origin(axes_origin)
         self.is_split = len(self.axes_origin) != 0
         self.resources = []
-        self.inputs = []
-        self.outputs = []
         for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
             filename = db.get_temp_filename(self.name, node)
             resource = pypeliner.resources.TempObjManager(self.name, node, filename)
             self.resources.append(resource)
-            self.outputs.append(resource)
+        self.merge_inputs = []
         for dependency in db.nodemgr.get_merge_inputs(self.axes, self.node, subset=self.axes_origin):
-            self.inputs.append(dependency)
+            self.merge_inputs.append(dependency)
+        self.split_outputs = []
         for dependency in db.nodemgr.get_split_outputs(self.axes, self.node, subset=self.axes_origin):
-            self.outputs.append(dependency)
+            self.split_outputs.append(dependency)
     def get_resources(self, db):
         return self.resources
     def get_inputs(self, db):
-        return self.inputs
+        return self.merge_inputs
     def get_outputs(self, db):
-        return self.outputs
+        for resource in self.resources:
+            yield resource.output
+        for dependency in self.split_outputs:
+            yield dependency
     def resolve(self, db):
         return self
     def updatedb(self, db):
+        print self.value.keys()
         db.nodemgr.store_chunks(self.axes, self.node, self.value.keys(), subset=self.axes_origin)
-    def finalize(self, db):
-        # TODO: not sure what to do here
-        for resource in self.get_resources(db):
-            node_chunks = self.get_node_chunks(resource.node)
+        for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
+            node_chunks = self.get_node_chunks(node)
             if node_chunks not in self.value:
-                raise ValueError('unable to extract ' + str(resource.node) + ' from ' + self.name + ' with values ' + str(self.value))
+                raise ValueError('unable to extract ' + str(node) + ' from ' + self.name + ' with values ' + str(self.value))
             instance_value = self.value[node_chunks]
+            filename = db.get_temp_filename(self.name, node)
+            resource = pypeliner.resources.TempObjManager(self.name, node, filename)
             resource.finalize(instance_value)
 
 
