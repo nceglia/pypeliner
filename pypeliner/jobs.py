@@ -91,14 +91,14 @@ class JobInstance(object):
         self.inputs = list()
         for arg in self.args:
             if isinstance(arg, pypeliner.arguments.Arg):
-                for input in arg.get_inputs(self.db):
+                for input in arg.get_inputs():
                     self.inputs.append(input)
         for node_input in self.db.nodemgr.get_node_inputs(self.node):
             self.inputs.append(node_input)
         self.outputs = list()
         for arg in self.args:
             if isinstance(arg, pypeliner.arguments.Arg):
-                for output in arg.get_outputs(self.db):
+                for output in arg.get_outputs():
                     self.outputs.append(output)
     @property
     def id(self):
@@ -236,7 +236,7 @@ def transform_arg(arg, db, callargs):
     if not isinstance(arg, pypeliner.arguments.Arg):
         return None, False
     arg = copy.copy(arg)
-    resolved = arg.resolve(db)
+    resolved = arg.resolve()
     arg.sanitize()
     callargs.append(arg)
     return resolved, True
@@ -292,7 +292,7 @@ class JobCallable(object):
         for arg in self.callargs:
             arg.updatedb(db)
         for arg in self.callargs:
-            arg.finalize(db)
+            arg.finalize()
 
 def _setobj_helper(value):
     return value
