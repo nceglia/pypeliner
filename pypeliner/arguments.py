@@ -167,6 +167,8 @@ class OutputFileArg(Arg):
         return self.resolved
     def finalize(self):
         self.resource.finalize()
+    def updatedb(self, db):
+        self.resource.update_fstats()
 
 
 class SplitFileArg(Arg,SplitMergeArg):
@@ -209,6 +211,8 @@ class SplitFileArg(Arg,SplitMergeArg):
     def updatedb(self, db):
         if self.is_split:
             db.nodemgr.store_chunks(self.axes, self.node, self.filename_callback.resources.keys(), subset=self.axes_origin)
+        for resource in self.filename_callback.resources.itervalues():
+            resource.update_fstats()
     def finalize(self):
         for resource in self.filename_callback.resources.itervalues():
             resource.finalize()
@@ -287,6 +291,7 @@ class TempOutputObjArg(Arg):
         return self
     def updatedb(self, db):
         self.resource.finalize(self.value)
+        self.resource.update_fstats()
 
 
 class TempSplitObjArg(Arg,SplitMergeArg):
@@ -323,7 +328,6 @@ class TempSplitObjArg(Arg,SplitMergeArg):
     def resolve(self):
         return self
     def updatedb(self, db):
-        print self.value.keys()
         db.nodemgr.store_chunks(self.axes, self.node, self.value.keys(), subset=self.axes_origin)
         for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
             node_chunks = self.get_node_chunks(node)
@@ -333,6 +337,7 @@ class TempSplitObjArg(Arg,SplitMergeArg):
             filename = db.get_temp_filename(self.name, node)
             resource = pypeliner.resources.TempObjManager(self.name, node, filename)
             resource.finalize(instance_value)
+            resource.update_fstats()
 
 
 class TempInputFileArg(Arg):
@@ -394,6 +399,8 @@ class TempOutputFileArg(Arg):
         return self.resolved
     def finalize(self):
         self.resource.finalize()
+    def updatedb(self, db):
+        self.resource.update_fstats()
 
 
 class FilenameCallback(object):
@@ -478,6 +485,8 @@ class TempSplitFileArg(Arg,SplitMergeArg):
     def updatedb(self, db):
         if self.is_split:
             db.nodemgr.store_chunks(self.axes, self.node, self.filename_callback.resources.keys(), subset=self.axes_origin)
+        for resource in self.filename_callback.resources.itervalues():
+            resource.update_fstats()
     def finalize(self):
         for resource in self.filename_callback.resources.itervalues():
             resource.finalize()

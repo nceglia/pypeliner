@@ -61,6 +61,8 @@ class Resource(Dependency):
         raise NotImplementedError
     def touch(self):
         raise NotImplementedError
+    def update_fstats(self):
+        pass
 
 
 class UserResource(Resource):
@@ -87,11 +89,12 @@ class UserResource(Resource):
         pypeliner.helpers.touch(self.filename)
     def finalize(self):
         try:
-            pypeliner.fstatcache.invalidate_cached_state(self.filename)
             if self.write_filename != self.filename:
                 os.rename(self.write_filename, self.filename)
         except OSError:
             raise OutputMissingException(self.write_filename)
+    def update_fstats(self):
+        pypeliner.fstatcache.invalidate_cached_state(self.filename)
 
 
 class TempFileResource(Resource):
@@ -130,17 +133,18 @@ class TempFileResource(Resource):
             pypeliner.helpers.touch(self.placeholder_filename)
     def finalize(self):
         try:
-            pypeliner.fstatcache.invalidate_cached_state(self.filename)
             if self.write_filename != self.filename:
                 os.rename(self.write_filename, self.filename)
         except OSError:
             raise OutputMissingException(write_filename)
-        self._save_createtime()
     def cleanup(self):
         if self.exists:
             logging.getLogger('resources').debug('removing ' + self.filename)
             pypeliner.fstatcache.invalidate_cached_state(self.filename)
             os.remove(self.filename)
+    def update_fstats(self):
+        self._save_createtime()
+        pypeliner.fstatcache.invalidate_cached_state(self.filename)
 
 
 class TempObjResource(Resource):
@@ -201,5 +205,6 @@ class TempObjManager(object):
         if not self.input.exists or not obj_equal(obj, self.get_obj()):
             with open(self.input.filename, 'wb') as f:
                 pickle.dump(obj, f)
+    def update_fstats(self):
         pypeliner.fstatcache.invalidate_cached_state(self.input.filename)
         pypeliner.fstatcache.invalidate_cached_state(self.output.filename)
