@@ -520,7 +520,7 @@ class InputInstanceArg(Arg):
     Resolves to the instance of the given job for a specific axis.
 
     """
-    def __init__(self, db, node, axis, **kwargs):
+    def __init__(self, db, name, node, axis=None, **kwargs):
         self.chunk = dict(node)[axis]
     def resolve(self):
         return self.chunk

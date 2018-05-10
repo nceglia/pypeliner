@@ -30,15 +30,6 @@ axis, the split axis.
 import pypeliner.arguments
 
 
-class JobArgMismatchException(Exception):
-    def __init__(self, name, axes, node):
-        self.name = name
-        self.axes = axes
-        self.node = node
-        self.job_name = 'unknown'
-    def __str__(self):
-        return 'arg {0} with axes {1} does not match job {2} with axes {3}'.format(self.name, self.axes, self.job_name, tuple(a[0] for a in self.node))
-
 class Managed(object):
     """ Interface class used to represent a managed data """
     def __init__(self, name, *axes, **kwargs):
@@ -49,27 +40,13 @@ class Managed(object):
         self.name = name
         self.axes = axes
         self.kwargs = kwargs
-    def create_arg(self, job):
-        common = 0
-        for node_axis, axis in zip((a[0] for a in job.node), self.axes):
-            if node_axis != axis:
-                break
-            common += 1
-        axes_specific = self.axes[common:]
-        if len(axes_specific) == 0 and self.normal is not None:
-            arg = self.normal(job.db, self.name, job.node[:common], direct_write=job.direct_write, **self.kwargs)
-        elif len(axes_specific) > 0 and self.splitmerge is not None:
-            arg = self.splitmerge(job.db, self.name, job.node[:common], axes_specific, direct_write=job.direct_write, **self.kwargs)
-        else:
-            raise JobArgMismatchException(self.name, self.axes, job.node)
-        return arg
 
 class Template(Managed):
-    """ Represents a name templated by axes 
+    """ Represents a name templated by axes
 
     `Template` objects will resolve the specified `name` templated by the given
-    `axes`.  `name` should be a format string, with named fields that match 
-    the names of the axes.  
+    `axes`.  `name` should be a format string, with named fields that match
+    the names of the axes.
 
     For instance, `Template('{case}_details', 'case')` will resolve to the
     strings 'tumour_details' and 'normal_details' if the `case` axis has chunks
@@ -106,7 +83,7 @@ class InputFile(Managed):
     """ Interface class used to represent a user specified managed file input
 
     `InputFile` objects will resolve the specified `name` templated by the given
-    `axes`.  `name` should be a format string, with named fields that match 
+    `axes`.  `name` should be a format string, with named fields that match
     the names of the axes.  The modification time of the file will be used to
     determine if the file has been modified more recently than a job's outputs,
     in order to determine if a job must be run.
@@ -130,8 +107,8 @@ class OutputFile(Managed):
     """ Interface class used to represent a user specified managed file output
 
     `OutputFile` objects will resolve the specified filename templated by the
-    given  axes.  `name` should be a format string, with named fields that match 
-    the names of the axes.  An `OutputFile` of the given name and axes is 
+    given  axes.  `name` should be a format string, with named fields that match
+    the names of the axes.  An `OutputFile` of the given name and axes is
     associated with a single job that creates that file.
 
     For instance, `OutputFile('{case}.bam', 'case')` will resolve to the
@@ -194,14 +171,14 @@ class TempInputObj(Managed):
         """
         Resolve to the return value of the given function called on the object
         rather than the object itself.
-        
+
         :param func: The function to be executed on the object.
 
         .. admonition:: Warning about state
 
-            The function provided should not have any state as this state 
+            The function provided should not have any state as this state
             cannot be tracked by the dependency system.  Appropriate uses
-            are a lambda function that accesses a dictionary entry or 
+            are a lambda function that accesses a dictionary entry or
             performs a fixed calculation.
         """
         return TempInputObjExtract(self.name, self.axes, func)
@@ -209,7 +186,7 @@ class TempInputObj(Managed):
 class TempOutputObj(Managed):
     """ Interface class used to represent a managed object output
 
-    `TempOutputObj` objects are only appropriate as return values for calls 
+    `TempOutputObj` objects are only appropriate as return values for calls
     to :py:func:`pypeliner.scheduler.Scheduler.transform`.  The object returned
     by the function executed for a transform job will be stored by the pipeline
     using `pickle`.
@@ -304,10 +281,11 @@ class Instance(Managed):
     Resolves to the chunk of its job's instance for a given axis.
 
     """
+    normal = pypeliner.arguments.InputInstanceArg
     def __init__(self, axis):
-        self.axis = axis
-    def create_arg(self, job):
-        return pypeliner.arguments.InputInstanceArg(job.db, job.node, self.axis)
+        self.name = axis + '_instance'
+        self.axes = None
+        self.kwargs = {'axis': axis}
 
 class InputInstance(Instance):
     pass
@@ -318,7 +296,7 @@ class InputChunks(Managed):
     :param axes: The axes of interest for which to obtain a list of chunks.
 
     `InputChunks` acts similar to a merge.  The specified axes should match
-    the axes of its job, with a single additional axis as for a merge.  
+    the axes of its job, with a single additional axis as for a merge.
     Resolves to a list of chunks for the given 'merge' axis.
 
     """
@@ -356,4 +334,3 @@ class Chunks(Managed):
         return OutputChunks(self.name, *self.axes, **self.kwargs)
     def create_arg(self, job):
         raise NotImplementedError('create input or output using as_input or as_output')
-

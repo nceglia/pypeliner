@@ -20,6 +20,7 @@ import pypeliner.storage
 
 import resource
 
+
 class CallSet(object):
     """ Set of positional and keyword arguments, and a return value """
     def __init__(self, ret=None, args=None, kwargs=None):
@@ -39,6 +40,7 @@ class CallSet(object):
         else:
             self.kwargs = kwargs
 
+
 class JobDefinition(object):
     """ Represents an abstract job including function and arguments """
     def __init__(self, name, axes, ctx, func, argset):
@@ -51,10 +53,22 @@ class JobDefinition(object):
         for node in db.nodemgr.retrieve_nodes(self.axes):
             yield JobInstance(self, workflow, db, node)
 
+
 def _pretty_date(ts):
     if ts is None:
         return 'none'
     return datetime.datetime.fromtimestamp(ts).strftime('%Y/%m/%d-%H:%M:%S')
+
+
+class JobArgMismatchException(Exception):
+    def __init__(self, name, axes, node):
+        self.name = name
+        self.axes = axes
+        self.node = node
+        self.job_name = 'unknown'
+    def __str__(self):
+        return 'arg {0} with axes {1} does not match job {2} with axes {3}'.format(self.name, self.axes, self.job_name, tuple(a[0] for a in self.node))
+
 
 class JobInstance(object):
     """ Represents a job including function and arguments """
@@ -69,7 +83,7 @@ class JobInstance(object):
             self.argset = pypeliner.deep.deeptransform(
                 self.job_def.argset,
                 self._create_arg)
-        except pypeliner.managed.JobArgMismatchException as e:
+        except JobArgMismatchException as e:
             e.job_name = self.displayname
             raise
         self.logs_dir = os.path.join(db.logs_dir, self.node.subdir, self.job_def.name)
@@ -82,7 +96,22 @@ class JobInstance(object):
     def _create_arg(self, mg):
         if not isinstance(mg, pypeliner.managed.Managed):
             return None, False
-        arg = mg.create_arg(self)
+        if mg.axes is None:
+            common = len(self.node)
+            axes_specific = ()
+        else:
+            common = 0
+            for node_axis, axis in zip((a[0] for a in self.node), mg.axes):
+                if node_axis != axis:
+                    break
+                common += 1
+            axes_specific = mg.axes[common:]
+        if len(axes_specific) == 0 and mg.normal is not None:
+            arg = mg.normal(self.db, mg.name, self.node[:common], direct_write=self.direct_write, **mg.kwargs)
+        elif len(axes_specific) > 0 and mg.splitmerge is not None:
+            arg = mg.splitmerge(self.db, mg.name, self.node[:common], axes_specific, direct_write=self.direct_write, **mg.kwargs)
+        else:
+            raise JobArgMismatchException(mg.name, mg.axes, self.node)
         self.arglist.append(arg)
         return arg, True
     def init_inputs_outputs(self):
