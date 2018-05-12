@@ -219,10 +219,15 @@ class SplitFileArg(Arg,SplitMergeArg):
             self.resources.append(resource)
         self.split_outputs = list(db.nodemgr.get_split_outputs(self.axes, self.node, subset=self.axes_origin))
         self.merge_inputs = list(db.nodemgr.get_merge_inputs(self.axes, self.node, subset=self.axes_origin))
-        filename_creator = db.get_user_filename_creator(
-            self.name, self.node.axes + self.axes, fnames=self.fnames, template=self.template)
-        self.filename_callback = UserFilenameCallback(
-            db.file_storage, self.name, self.node, self.axes, filename_creator, **kwargs)
+        if self.is_split:
+            filename_creator = db.get_user_filename_creator(
+                self.name, self.node.axes + self.axes, fnames=self.fnames, template=self.template)
+            self.filename_callback = UserFilenameCallback(
+                db.file_storage, self.name, self.node, self.axes, filename_creator, **kwargs)
+        else:
+            self.filenames = dict()
+            for resource in self.resources:
+                self.filenames[self.get_node_chunks(resource.node)] = resource.filename
     def get_merge_inputs(self):
         return self.merge_inputs
     def get_outputs(self):
@@ -230,13 +235,20 @@ class SplitFileArg(Arg,SplitMergeArg):
     def get_split_outputs(self):
         return self.split_outputs
     def resolve(self):
-        return self.filename_callback
+        if self.is_split:
+            return self.filename_callback
+        else:
+            return self.filenames
     def updatedb(self, db):
         if self.is_split:
             db.nodemgr.store_chunks(self.axes, self.node, self.filename_callback.resources.keys(), subset=self.axes_origin)
     def push(self):
-        for resource in self.filename_callback.resources.itervalues():
-            resource.push()
+        if self.is_split:
+            for resource in self.filename_callback.resources.itervalues():
+                resource.push()
+        else:
+            for resource in self.resources:
+                resource.push()
 
 
 class TempInputObjArg(Arg):
