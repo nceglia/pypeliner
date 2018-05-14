@@ -71,6 +71,15 @@ class JobArgMismatchException(Exception):
         return 'arg {0} with axes {1} does not match job {2} with axes {3}'.format(self.name, self.axes, self.job_name, tuple(a[0] for a in self.node))
 
 
+def _max_subseq(seq1, seq2):
+    common = 0
+    for a, b in zip(seq1, seq2):
+        if a != b:
+            break
+        common += 1
+    return common
+
+
 class JobInstance(object):
     """ Represents a job including function and arguments """
     direct_write = False
@@ -81,6 +90,7 @@ class JobInstance(object):
         self.db = db
         self.node = node
         self.arglist = list()
+        self.axes_origins = defaultdict(list) # list of args for each axes origin
         try:
             self.argset = pypeliner.deep.deeptransform(
                 self.job_def.argset,
@@ -102,22 +112,25 @@ class JobInstance(object):
     def _create_arg(self, mg):
         if not isinstance(mg, pypeliner.managed.Managed):
             return None, False
+        # Match managed argument axes to job axes
         if mg.axes is None:
             common = len(self.node)
             axes_specific = ()
         else:
-            common = 0
-            for node_axis, axis in zip((a[0] for a in self.node), mg.axes):
-                if node_axis != axis:
-                    break
-                common += 1
+            common = _max_subseq(mg.axes, self.node.axes)
             axes_specific = mg.axes[common:]
+        #
+        # Create an argument with the given
         if len(axes_specific) == 0 and mg.normal is not None:
             arg = mg.normal(self.db, mg.name, self.node[:common], direct_write=self.direct_write, **mg.kwargs)
         elif len(axes_specific) > 0 and mg.splitmerge is not None:
             arg = mg.splitmerge(self.db, mg.name, self.node[:common], axes_specific, direct_write=self.direct_write, **mg.kwargs)
         else:
             raise JobArgMismatchException(mg.name, mg.axes, self.node)
+        # Check if an argument is originating a split
+        for _axes_origin in self.job_def.axes_origins:
+            if _is_subseq(origins, _axes_origin):
+                _axes_origin[origin].append(arg)
         self.arglist.append(arg)
         return arg, True
     def init_inputs_outputs(self):
