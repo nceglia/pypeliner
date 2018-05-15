@@ -70,10 +70,20 @@ class JobArgMismatchException(Exception):
         return 'arg {0} with axes {1} does not match job {2} with axes {3}'.format(self.name, self.axes, self.job_name, tuple(a[0] for a in self.node))
 
 
+def _max_subseq(seq1, seq2):
+    common = 0
+    for a, b in zip(seq1, seq2):
+        if a != b:
+            break
+        common += 1
+    return common
+
+
 class JobInstance(object):
     """ Represents a job including function and arguments """
     direct_write = False
     def __init__(self, job_def, workflow, db, node):
+        print 'job'
         self.job_def = job_def
         self.workflow = workflow
         self.db = db
@@ -96,16 +106,15 @@ class JobInstance(object):
     def _create_arg(self, mg):
         if not isinstance(mg, pypeliner.managed.Managed):
             return None, False
+        # Match managed argument axes to job axes
         if mg.axes is None:
             common = len(self.node)
             axes_specific = ()
         else:
-            common = 0
-            for node_axis, axis in zip((a[0] for a in self.node), mg.axes):
-                if node_axis != axis:
-                    break
-                common += 1
+            common = _max_subseq(mg.axes, self.node.axes)
             axes_specific = mg.axes[common:]
+        # 
+        # Create an argument with the given
         if len(axes_specific) == 0 and mg.normal is not None:
             arg = mg.normal(self.db, mg.name, self.node[:common], direct_write=self.direct_write, **mg.kwargs)
         elif len(axes_specific) > 0 and mg.splitmerge is not None:
