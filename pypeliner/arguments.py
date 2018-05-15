@@ -6,14 +6,18 @@ import pypeliner.identifiers
 
 
 class Arg(object):
-    is_split = False
+    def __init__(self, db, name, node, split_merge_nodes=None, **kwargs):
+        self.name = name
+        self.node = node
+        self.split_merge_nodes = split_merge_nodes
+        self.is_split = (split_merge_nodes is not None)
+        self.kwargs = kwargs
+        setup_resources(db)
+    def setup_resources(self, db):
+        raise NotImplementedError()
     def get_inputs(self):
         return []
-    def get_merge_inputs(self):
-        return []
     def get_outputs(self):
-        return []
-    def get_split_outputs(self):
         return []
     def resolve(self):
         return None
@@ -48,13 +52,11 @@ class TemplateArg(Arg):
     dictionary.
 
     """
-    def __init__(self, db, name, node, template=None, **kwargs):
-        self.name = name
-        self.node = node
-        if template is not None:
-            self.filename = template.format(**dict(node))
+    def setup_resources(self, db):
+        if self.kwargs.get('template') is not None:
+            self.filename = self.kwargs['template'].format(**dict(self.node))
         else:
-            self.filename = name.format(**dict(node))
+            self.filename = self.name.format(**dict(self.node))
     def resolve(self):
         return self.filename
 
@@ -65,10 +67,8 @@ class TempSpaceArg(Arg):
     Resolves to a filename/directory contained within the temporary files directory.
 
     """
-    def __init__(self, db, name, node, cleanup='both', **kwargs):
-        self.name = name
-        self.node = node
-        self.cleanup = cleanup
+    def setup_resources(self, db):
+        self.cleanup = self.kwargs.get('cleanup')
         self.filename = db.get_temp_filename(name, node)
     def get_outputs(self):
         yield pypeliner.resources.Dependency(self.name, self.node)
@@ -92,36 +92,37 @@ class MergeTemplateArg(Arg):
     for the merge axis.  Each value is the name formatted using the merge node dictionary.
 
     """
-    def __init__(self, db, name, node, axes, template=None, **kwargs):
-        self.name = name
-        self.node = node
-        self.axes = axes
-        self.template = template
-        self.merge_inputs = list(db.nodemgr.get_merge_inputs(self.axes, self.node))
+    def setup_resources(self, db):
         self.formatted = {}
-        for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
-            if self.template is not None:
-                self.formatted[node[-1][1]] = self.template.format(**dict(node))
+        for node in self.split_merge_nodes:
+            if self.kwargs.get('template') is not None:
+                self.formatted[node[-1][1]] = self.kwargs['template'].format(**dict(node))
             else:
                 self.formatted[node[-1][1]] = self.name.format(**dict(node))
-    def get_merge_inputs(self):
-        return self.merge_inputs
     def resolve(self):
         return self.formatted
 
 
-class InputFileArg(Arg):
+class FileArgMixin(object):
+    def create_resource(self, node):
+        filename = db.get_user_filename(self.name, node,
+            fnames=self.kwargs.get('fnames'),
+            template=self.kwargs.get('fnames'))
+        resource = pypeliner.resources.UserResource(db.file_storage, self.name, node, filename,
+            direct_write=kwargs.get('direct_write'),
+            extensions=kwargs.get('extensions'))
+        return resource
+
+
+class InputFileArg(Arg, FileArgMixin):
     """ Input file argument
 
     The name argument is treated as a filename with named formatting.  Resolves to a filename formatted using the node
     dictionary.
 
     """
-    def __init__(self, db, name, node, fnames=None, template=None, **kwargs):
-        filename = db.get_user_filename(name, node, fnames=fnames, template=template)
-        self.resource = pypeliner.resources.UserResource(db.file_storage, name, node, filename,
-            direct_write=kwargs.get('direct_write'),
-            extensions=kwargs.get('extensions'))
+    def setup_resources(self, db):
+        self.resource = self.create_resource(self.node)
     def get_inputs(self):
         yield self.resource
     def resolve(self):
@@ -132,33 +133,19 @@ class InputFileArg(Arg):
         self.resource.pull()
 
 
-class MergeFileArg(Arg,SplitMergeArg):
+class MergeFileArg(Arg, SplitMergeArg, FileArgMixin):
     """ Input files merged along a single axis
 
     The name argument is treated as a filename with named formatting.  Resolves to a dictionary with keys as chunks for
     the merge axis.  Each value is the filename formatted using the merge node dictonary.
 
     """
-    def __init__(self, db, name, node, axes, fnames=None, template=None, **kwargs):
-        self.name = name
-        self.node = node
-        self.axes = axes
-        self.fnames = fnames
-        self.template = template
+    def setup_resources(self, db):
         self.resources = []
-        for node in db.nodemgr.retrieve_nodes(self.axes, self.node):
-            filename = db.get_user_filename(self.name, node, fnames=self.fnames, template=self.template)
-            resource = pypeliner.resources.UserResource(db.file_storage, self.name, node, filename,
-                direct_write=kwargs.get('direct_write'),
-                extensions=kwargs.get('extensions'))
-            self.resources.append(resource)
-        self.merge_inputs = []
-        for dependency in db.nodemgr.get_merge_inputs(self.axes, self.node):
-            self.merge_inputs.append(dependency)
+        for node in self.split_merge_nodes:
+            self.resources.append(self.create_resource(node))
     def get_inputs(self):
         return self.resources
-    def get_merge_inputs(self):
-        return self.merge_inputs
     def resolve(self):
         resolved = dict()
         for resource in self.resources:
@@ -179,11 +166,8 @@ class OutputFileArg(Arg):
     dictionary, including the '.tmp' suffix.
 
     """
-    def __init__(self, db, name, node, fnames=None, template=None, **kwargs):
-        filename = db.get_user_filename(name, node, fnames=fnames, template=template)
-        self.resource = pypeliner.resources.UserResource(db.file_storage, name, node, filename,
-            direct_write=kwargs.get('direct_write'),
-            extensions=kwargs.get('extensions'))
+    def setup_resources(self, db):
+        self.resource = self.create_resource(self.node)
     def get_outputs(self):
         yield self.resource
     def resolve(self):
@@ -202,6 +186,10 @@ class SplitFileArg(Arg,SplitMergeArg):
     involves removing the '.tmp' suffix for each file created by the job.
 
     """
+    def setup_resources(self, db):
+        self.resources = []
+        for node in self.split_merge_nodes:
+            self.resources.append(self.create_resource(node))
     def __init__(self, db, name, node, axes, axes_origin=None, fnames=None, template=None, **kwargs):
         self.name = name
         self.node = node

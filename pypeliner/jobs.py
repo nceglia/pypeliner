@@ -102,7 +102,6 @@ class JobInstance(object):
         self.ctx = job_def.ctx.copy()
         self.is_required_downstream = False
         self.init_inputs_outputs()
-
     def _create_arg(self, mg):
         if not isinstance(mg, pypeliner.managed.Managed):
             return None, False
@@ -113,12 +112,14 @@ class JobInstance(object):
         else:
             common = _max_subseq(mg.axes, self.node.axes)
             axes_specific = mg.axes[common:]
-        # 
-        # Create an argument with the given
+        # Create an argument for the given managed object
         if len(axes_specific) == 0 and mg.normal is not None:
             arg = mg.normal(self.db, mg.name, self.node[:common], direct_write=self.direct_write, **mg.kwargs)
         elif len(axes_specific) > 0 and mg.splitmerge is not None:
             arg = mg.splitmerge(self.db, mg.name, self.node[:common], axes_specific, direct_write=self.direct_write, **mg.kwargs)
+            if 'axes_origin' in mg.kwargs:
+                for i in axes_origin:
+                    self.axes_origin.add(axes_specific[:i])
         else:
             raise JobArgMismatchException(mg.name, mg.axes, self.node)
         self.arglist.append(arg)
