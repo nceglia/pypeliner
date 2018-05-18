@@ -223,10 +223,13 @@ class scheduler_test(unittest.TestCase):
         workflow.transform(
             name='split_files',
             func=split_2_file_byline,
+            origins=(
+                ('split',),
+            ),
             args=(
                 mgd.InputFile(self.input_filename),
                 mgd.TempOutputFile('output', 'split'),
-                mgd.TempOutputFile('output2', 'split', axes_origin=[]),
+                mgd.TempOutputFile('output2', 'split'),
             ),
         )
 

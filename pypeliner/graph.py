@@ -68,7 +68,7 @@ class DependencyGraph:
                 self.dependant_jobs[resource.id].add(job.id)
             for resource in job.outputs:
                 print '  output', resource.id
-                if resource.id in self.creating_job:
+                if resource.id in self.creating_job and self.creating_job[resource.id] != job.id:
                     raise AmbiguousOutputException(resource.id, [job.id, self.creating_job[resource.id]])
                 self.creating_job[resource.id] = job.id
         for job in jobs.itervalues():

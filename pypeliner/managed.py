@@ -40,6 +40,8 @@ class Managed(object):
         self.name = name
         self.axes = axes
         self.kwargs = kwargs
+    def create_arg(self, job):
+        return self.arg(job, self.name, self.axes, **self.kwargs)
 
 class Template(Managed):
     """ Represents a name templated by axes
@@ -100,8 +102,7 @@ class InputFile(Managed):
     as specified above, with chunks of the merge axis as keys.
 
     """
-    normal = pypeliner.arguments.InputFileArg
-    splitmerge = pypeliner.arguments.MergeFileArg
+    arg = pypeliner.arguments.InputFileArg
 
 class OutputFile(Managed):
     """ Interface class used to represent a user specified managed file output
@@ -124,8 +125,7 @@ class OutputFile(Managed):
     for that chunk.
 
     """
-    normal = pypeliner.arguments.OutputFileArg
-    splitmerge = pypeliner.arguments.SplitFileArg
+    arg = pypeliner.arguments.OutputFileArg
 
 class File(Managed):
     """ Interface class used to represent a user specified managed file
@@ -240,8 +240,7 @@ class TempInputFile(Managed):
     with chunks of the merge axis as keys.
 
     """
-    normal = pypeliner.arguments.TempInputFileArg
-    splitmerge = pypeliner.arguments.TempMergeFileArg
+    arg = pypeliner.arguments.TempInputFileArg
 
 class TempOutputFile(Managed):
     """ Interface class used to represent a managed temporary file output
@@ -258,8 +257,7 @@ class TempOutputFile(Managed):
     for that chunk.
 
     """
-    normal = pypeliner.arguments.TempOutputFileArg
-    splitmerge = pypeliner.arguments.TempSplitFileArg
+    arg = pypeliner.arguments.TempOutputFileArg
 
 class TempFile(Managed):
     """ Interface class used to represent a managed temporary file

@@ -89,7 +89,7 @@ class Workflow(object):
         """
         self.transform(name=name, axes=axes, ctx=ctx, func=pypeliner.commandline.execute, args=args)
 
-    def transform(self, name='', axes=(), ctx=None, func=None, ret=None, args=None, kwargs=None):
+    def transform(self, name='', axes=(), ctx=None, func=None, origins=(), ret=None, args=None, kwargs=None):
         """ Add a transform to the pipeline.  A transform defines a job that uses the
         provided python function ``func`` to take input dependencies and create/update 
         output dependents.
@@ -106,6 +106,7 @@ class Workflow(object):
                     ``ctx['local'] = True`` will result in the job being run locally on
                     the calling machine even when a cluster is being used.
         :param func: The function to call for this job.
+        :param origins: Which axes this job is responsible for
         :param ret: The return value 
         :param args: The list of positional arguments to be used for the function call.
         :param kwargs: The list of keyword arguments to be used for the function call.
@@ -126,7 +127,7 @@ class Workflow(object):
             job_ctx.update(ctx)
         if name in self.job_definitions:
             raise ValueError('Job already defined')
-        self.job_definitions[name] = pypeliner.jobs.JobDefinition(name, axes, job_ctx, func, pypeliner.jobs.CallSet(ret=ret, args=args, kwargs=kwargs))
+        self.job_definitions[name] = pypeliner.jobs.JobDefinition(name, axes, job_ctx, func, pypeliner.jobs.CallSet(ret=ret, args=args, kwargs=kwargs), origins)
 
     def subworkflow(self, name='', axes=(), func=None, args=None, kwargs=None):
         """ Add a sub workflow to the pipeline.  A sub workflow is a set of jobs that
